@@ -2,4 +2,5 @@
 
 members = [
 	"crosslib-core",
+	"crosslib-core/ffi"
 ]
