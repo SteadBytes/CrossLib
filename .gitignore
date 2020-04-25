@@ -1,2 +1,10 @@
+# Rust
 .cargo
 target
+
+# Android/IntelliJ
+.idea
+.gradle
+*.iml
+local.properties
+build

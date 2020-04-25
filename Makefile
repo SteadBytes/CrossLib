@@ -1,16 +1,24 @@
+
 build: build-rust
 
 build-rust: ## Build all Rust code
 	cargo build --all
 
-.PHONY: build build-rust
+build-kotlin: ## Build all Kotlin code
+	# TODO: Move root gradle scripts to project root
+	cd crosslib-core/android; ./gradlew build -x test
+
+.PHONY: build build-rust build-kotlin
 
 test: test-rust
 
 test-rust: ## Run Rust tests for crosslib-core and crosslib-ffi
 	cargo test --all
 
-.PHONY: test test-rust
+test-kotlin: ## Test all Kotlin code
+	cd crosslib-core/android; ./gradlew testDebugUnitTest
+
+.PHONY: test test-rust test-kotlin
 
 cbindgen: ## Regenerate the Rust FFI headers
 	cbindgen \
