@@ -5,8 +5,7 @@ build-rust: ## Build all Rust code
 	cargo build --all
 
 build-kotlin: ## Build all Kotlin code
-	# TODO: Move root gradle scripts to project root
-	cd crosslib-core/android; ./gradlew build -x test
+	./gradlew build -x test
 
 .PHONY: build build-rust build-kotlin
 
@@ -16,7 +15,7 @@ test-rust: ## Run Rust tests for crosslib-core and crosslib-ffi
 	cargo test --all
 
 test-kotlin: ## Test all Kotlin code
-	cd crosslib-core/android; ./gradlew testDebugUnitTest
+	./gradlew testDebugUnitTest
 
 .PHONY: test test-rust test-kotlin
 

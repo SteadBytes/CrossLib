@@ -1,0 +1,5 @@
+rootProject.name='CrossLib'
+
+include ':crosslib'
+project(':crosslib').projectDir = new File(rootDir, 'crosslib-core/android')
+

@@ -1,26 +1,107 @@
-buildscript {
-    ext.kotlin_version = '1.3.72'
-    repositories {
-        google()
-        jcenter()
-        maven {
-            url "https://plugins.gradle.org/m2/"
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+apply plugin: 'org.mozilla.rust-android-gradle.rust-android'
+
+android {
+    compileSdkVersion 29
+    buildToolsVersion "29.0.3"
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 29
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            consumerProguardFiles "$projectDir/proguard-rules-consumer.pro"
         }
     }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:3.6.1'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath 'gradle.plugin.org.mozilla.rust-android-gradle:plugin:0.8.3'
+
+    // Ensure that Rust .so build outputs are included
+    sourceSets {
+        main.jniLibs.srcDirs += "$buildDir/nativeLibs/android"
+        test.resources.srcDirs += "$buildDir/rustJniLibs/desktop"
+        test.resources.srcDirs += "$buildDir/nativeLibs/desktop"
+    }
+
+    testOptions {
+        // Ensure that jniLibs are present in Android test builds
+        unitTests {
+            includeAndroidResources = true
+        }
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        jcenter()
-    }
+// Ensure that jniLibs are present in release and debug builds
+afterEvaluate {
+    android.sourceSets.debug.jniLibs.srcDirs = android.sourceSets.main.jniLibs.srcDirs
+    android.sourceSets.release.jniLibs.srcDirs = android.sourceSets.main.jniLibs.srcDirs
+    android.sourceSets.main.jniLibs.srcDirs = []
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
+cargo {
+    module = '../ffi'
+    targetDirectory = '../../target'
+    apiLevel = 21
+    libname = 'crosslib_ffi'
+    targets = ["arm", "x86", "x86_64", "linux-x86-64"]
+}
+
+configurations {
+    // Courtesy of https://github.com/mozilla/application-services/blob/c40e2ccb422cf4af9ffdf095149cec34de1d4bef/components/fxa-client/android/build.gradle#L82
+    //
+    // There's an interaction between Gradle's resolution of dependencies with different types
+    // (@jar, @aar) for `implementation` and `testImplementation` and with Android Studio's built-in
+    // JUnit test runner.  The runtime classpath in the built-in JUnit test runner gets the
+    // dependency from the `implementation`, which is type @aar, and therefore the JNA dependency
+    // doesn't provide the JNI dispatch libraries in the correct Java resource directories.  I think
+    // what's happening is that @aar type in `implementation` resolves to the @jar type in
+    // `testImplementation`, and that it wins the dependency resolution battle.
+    //
+    // A workaround is to add a new configuration which depends on the @jar type and to reference
+    // the underlying JAR file directly in `testImplementation`.  This JAR file doesn't resolve to
+    // the @aar type in `implementation`.  This works when invoked via `gradle`, but also sets the
+    // correct runtime classpath when invoked with Android Studio's built-in JUnit test runner.
+    // Success!
+    jnaForTest
+}
+
+dependencies {
+    jnaForTest 'net.java.dev.jna:jna:5.5.0@jar'
+    implementation 'net.java.dev.jna:jna:5.5.0@aar'
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.core:core-ktx:1.2.0'
+
+    // copyRecursive() avoids Gradle throwing "Cannot change strategy of configuration
+    // ':android:jnaForTest' after it has been resolved." error. Accessing .files property of the
+    // jnaForTest configuration causes it to be resolved, however it's has already been resolved
+    // prior to this step running - hence the error. Copying ensures the .files property is not
+    // associated with the existing configuration.
+    testImplementation files(configurations.jnaForTest.copyRecursive().files)
+    testImplementation 'junit:junit:4.12'
+    testImplementation "org.jetbrains.kotlin:kotlin-test:$kotlin_version"
+
+    androidTestImplementation 'androidx.test.ext:junit:1.1.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
+}
+
+afterEvaluate {
+    // The `cargoBuild` task isn't available until after evaluation
+    android.libraryVariants.all { variant ->
+        def productFlavor = ""
+        variant.productFlavors.each {
+            productFlavor += "${it.name.capitalize()}"
+        }
+        def buildType = "${variant.buildType.name.capitalize()}"
+        tasks["generate${productFlavor}${buildType}Assets"].dependsOn(tasks["cargoBuild"])
+    }
 }
