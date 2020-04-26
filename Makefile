@@ -7,7 +7,11 @@ build-rust: ## Build all Rust code
 build-kotlin: ## Build all Kotlin code
 	./gradlew build -x test
 
-.PHONY: build build-rust build-kotlin
+build-apk: ## Build CrossLib example application APK
+	./gradlew crosslib:build
+	./gradlew crosslib-example-app:build
+
+.PHONY: build build-rust build-kotlin build-apk
 
 test: test-rust
 

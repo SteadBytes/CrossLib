@@ -3,3 +3,5 @@ rootProject.name='CrossLib'
 include ':crosslib'
 project(':crosslib').projectDir = new File(rootDir, 'crosslib-core/android')
 
+include ':crosslib-example-app'
+project(':crosslib-example-app').projectDir = new File(rootDir, 'examples/android/app')

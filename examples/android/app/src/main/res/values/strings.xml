@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">CrossLib Example</string>
+    <string name="generate_id">Generate ID</string>
+</resources>
